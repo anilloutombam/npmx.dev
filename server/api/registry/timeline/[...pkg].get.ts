@@ -82,17 +82,15 @@ export default defineCachedEventHandler(
           }
         })
         .sort((a, b) => Date.parse(b.time) - Date.parse(a.time))
+
       const visibleVersions = allVersions.slice(offset, offset + limit)
 
-      const possibleTypeRemovals = visibleVersions.filter(version => {
-        if (version.hasTypes) return false
-
-        const versionIndex = allVersions.indexOf(version)
-        return allVersions.slice(versionIndex + 1).some(previousVersion => previousVersion.hasTypes)
-      })
-
-      await Promise.all(
-        possibleTypeRemovals.map(async version => {
+      const possibleTypeRemovals = visibleVersions
+        .filter((version, index) => {
+          if (version.hasTypes) return false
+          return allVersions.slice(index + 1).some(previousVersion => previousVersion.hasTypes)
+        })
+        .map(async version => {
           try {
             const { pkg, typesPackage, files } = await fetchPackageWithTypesAndFiles(
               packageName,
@@ -110,8 +108,9 @@ export default defineCachedEventHandler(
           } catch {
             // Preserve the metadata-only result when the file list is unavailable.
           }
-        }),
-      )
+        })
+
+      await Promise.all(possibleTypeRemovals)
 
       return {
         versions: visibleVersions,
