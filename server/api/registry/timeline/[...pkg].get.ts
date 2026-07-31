@@ -85,10 +85,10 @@ export default defineCachedEventHandler(
       const visibleVersions = allVersions.slice(offset, offset + limit)
 
       const possibleTypeRemovals = visibleVersions.filter(version => {
-        const versionIndex = allVersions.indexOf(version)
-        const previousVersion = allVersions[versionIndex + 1]
+        if (version.hasTypes) return false
 
-        return !version.hasTypes && previousVersion?.hasTypes
+        const versionIndex = allVersions.indexOf(version)
+        return allVersions.slice(versionIndex + 1).some(previousVersion => previousVersion.hasTypes)
       })
 
       await Promise.all(
