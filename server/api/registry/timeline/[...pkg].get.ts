@@ -82,13 +82,19 @@ export default defineCachedEventHandler(
           }
         })
         .sort((a, b) => Date.parse(b.time) - Date.parse(a.time))
-
       const visibleVersions = allVersions.slice(offset, offset + limit)
 
+      // File-aware detection is limited to potential removal events: metadata-untyped
+      // versions with an older typed release. Checking every untyped version would
+      // require additional registry and file-tree requests.
       const possibleTypeRemovals = visibleVersions
-        .filter((version, index) => {
+        .filter(version => {
           if (version.hasTypes) return false
-          return allVersions.slice(index + 1).some(previousVersion => previousVersion.hasTypes)
+
+          const versionIndex = allVersions.indexOf(version)
+          return allVersions
+            .slice(versionIndex + 1)
+            .some(previousVersion => previousVersion.hasTypes)
         })
         .map(async version => {
           try {
