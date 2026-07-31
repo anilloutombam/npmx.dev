@@ -3,7 +3,9 @@ import { createError, type H3Event } from 'h3'
 import type { Packument, PackumentVersion } from '#shared/types/npm-registry'
 
 const fetchNpmPackageMock = vi.fn()
+const fetchPackageWithTypesAndFilesMock = vi.fn()
 vi.stubGlobal('fetchNpmPackage', fetchNpmPackageMock)
+vi.stubGlobal('fetchPackageWithTypesAndFiles', fetchPackageWithTypesAndFilesMock)
 vi.stubGlobal('defineCachedEventHandler', (fn: Function) => fn)
 vi.stubGlobal('CACHE_MAX_AGE_FIVE_MINUTES', 300)
 
@@ -226,6 +228,41 @@ describe('timeline API', () => {
 
     const result = await handler(fakeEvent)
     expect(result.versions[0]!.hasTypes).toBe(true)
+  })
+  it('sets hasTypes when declaration files exist beside an entry point', async () => {
+    routerParam = 'my-pkg'
+
+    fetchNpmPackageMock.mockResolvedValue(
+      makePackument({
+        versions: {
+          '1.0.0': {
+            types: './dist/index.d.ts',
+          },
+          '2.0.0': {
+            main: './dist/index.mjs',
+          },
+        },
+        time: {
+          '1.0.0': '2024-01-01T00:00:00Z',
+          '2.0.0': '2025-01-01T00:00:00Z',
+        },
+      }),
+    )
+
+    fetchPackageWithTypesAndFilesMock.mockResolvedValue({
+      pkg: {
+        name: 'my-pkg',
+        version: '2.0.0',
+        main: './dist/index.mjs',
+      },
+      files: new Set(['dist/index.mjs', 'dist/index.d.mts']),
+    })
+
+    const result = await handler(fakeEvent)
+
+    expect(fetchPackageWithTypesAndFilesMock).toHaveBeenCalledWith('my-pkg', '2.0.0')
+    expect(result.versions[0]!.hasTypes).toBe(true)
+    expect(result.versions[1]!.hasTypes).toBe(true)
   })
 
   it('sets hasTrustedPublisher when trustedPublisher is true', async () => {

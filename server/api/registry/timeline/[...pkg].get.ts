@@ -1,5 +1,5 @@
 import { normalizeLicense } from '#shared/utils/npm'
-import { hasBuiltInTypes } from '~~/shared/utils/package-analysis'
+import { analyzePackage, hasBuiltInTypes } from '~~/shared/utils/package-analysis'
 
 const DEFAULT_LIMIT = 25
 
@@ -82,9 +82,39 @@ export default defineCachedEventHandler(
           }
         })
         .sort((a, b) => Date.parse(b.time) - Date.parse(a.time))
+      const visibleVersions = allVersions.slice(offset, offset + limit)
+
+      const possibleTypeRemovals = visibleVersions.filter(version => {
+        const versionIndex = allVersions.indexOf(version)
+        const previousVersion = allVersions[versionIndex + 1]
+
+        return !version.hasTypes && previousVersion?.hasTypes
+      })
+
+      await Promise.all(
+        possibleTypeRemovals.map(async version => {
+          try {
+            const { pkg, typesPackage, files } = await fetchPackageWithTypesAndFiles(
+              packageName,
+              version.version,
+            )
+
+            const analysis = analyzePackage(pkg, {
+              typesPackage,
+              files,
+            })
+
+            if (analysis.types.kind === 'included') {
+              version.hasTypes = true
+            }
+          } catch {
+            // Preserve the metadata-only result when the file list is unavailable.
+          }
+        }),
+      )
 
       return {
-        versions: allVersions.slice(offset, offset + limit),
+        versions: visibleVersions,
         total: allVersions.length,
       } satisfies TimelineResponse
     } catch (error: unknown) {
