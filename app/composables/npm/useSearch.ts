@@ -229,7 +229,7 @@ export function useSearch(
     }
 
     if (asyncData.status.value === 'pending') {
-      await asyncData.refresh()
+      await asyncData.refresh({ dedupe: 'defer' })
     }
 
     if (cache.value && (cache.value.query !== q || cache.value.provider !== provider)) {
