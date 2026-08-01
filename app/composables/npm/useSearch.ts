@@ -228,6 +228,10 @@ export function useSearch(
       return
     }
 
+    if (asyncData.status.value === 'pending') {
+      await asyncData.refresh()
+    }
+
     if (cache.value && (cache.value.query !== q || cache.value.provider !== provider)) {
       cache.value = null
       await asyncData.refresh()
