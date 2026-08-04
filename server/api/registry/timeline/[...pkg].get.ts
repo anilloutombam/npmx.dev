@@ -1,5 +1,6 @@
+import { enrichTimelineVersionTypes } from '#server/utils/package-timeline'
 import { normalizeLicense } from '#shared/utils/npm'
-import { analyzePackage, hasBuiltInTypes } from '~~/shared/utils/package-analysis'
+import { hasBuiltInTypes } from '~~/shared/utils/package-analysis'
 
 const DEFAULT_LIMIT = 25
 
@@ -84,40 +85,7 @@ export default defineCachedEventHandler(
         .sort((a, b) => Date.parse(b.time) - Date.parse(a.time))
       const visibleVersions = allVersions.slice(offset, offset + limit)
 
-      // File-aware detection is limited to potential removal events: metadata-untyped
-      // versions with an older typed release. Checking every untyped version would
-      // require additional registry and file-tree requests.
-      const possibleTypeRemovals = visibleVersions
-        .filter(version => {
-          if (version.hasTypes) return false
-
-          const versionIndex = allVersions.indexOf(version)
-          return allVersions
-            .slice(versionIndex + 1)
-            .some(previousVersion => previousVersion.hasTypes)
-        })
-        .map(async version => {
-          try {
-            const { pkg, typesPackage, files } = await fetchPackageWithTypesAndFiles(
-              packageName,
-              version.version,
-            )
-
-            const analysis = analyzePackage(pkg, {
-              typesPackage,
-              files,
-            })
-
-            if (analysis.types.kind === 'included') {
-              version.hasTypes = true
-            }
-          } catch {
-            // Preserve the metadata-only result when the file list is unavailable.
-          }
-        })
-
-      await Promise.all(possibleTypeRemovals)
-
+      await enrichTimelineVersionTypes(packageName, allVersions, visibleVersions)
       return {
         versions: visibleVersions,
         total: allVersions.length,
