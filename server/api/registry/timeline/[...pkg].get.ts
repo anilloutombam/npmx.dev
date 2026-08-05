@@ -115,6 +115,8 @@ export default defineEventHandler(async event => {
   const offset = Math.max(0, Number(query.offset) || 0)
   const limit = Math.max(1, Math.min(100, Number(query.limit) || DEFAULT_LIMIT))
   const stableOnly = String(query.stable) === 'true'
+  setHeader(event, 'x-timeline-stable-raw', String(query.stable))
+  setHeader(event, 'x-timeline-stable-only', String(stableOnly))
 
   try {
     return await getTimeline(packageName, offset, limit, stableOnly)
