@@ -20,8 +20,6 @@ let queryParams: Record<string, string | number | string[]> = {}
 vi.stubGlobal('getRouterParam', (_event: unknown, _name: string) => routerParam)
 vi.stubGlobal('getQuery', () => queryParams)
 vi.stubGlobal('createError', createError)
-vi.stubGlobal('defineEventHandler', (fn: Function) => fn)
-vi.stubGlobal('defineCachedFunction', (fn: Function) => fn)
 
 const handler = (await import('#server/api/registry/timeline/[...pkg].get')).default
 

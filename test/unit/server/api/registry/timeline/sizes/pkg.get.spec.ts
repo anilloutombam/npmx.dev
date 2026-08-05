@@ -18,8 +18,6 @@ const calculateInstallSizeMock = vi.fn(async (_packageName: string, version: str
 vi.stubGlobal('calculateInstallSize', calculateInstallSizeMock)
 vi.stubGlobal('defineCachedEventHandler', (fn: Function) => fn)
 vi.stubGlobal('CACHE_MAX_AGE_FIVE_MINUTES', 300)
-vi.stubGlobal('defineEventHandler', (fn: Function) => fn)
-vi.stubGlobal('defineCachedFunction', (fn: Function) => fn)
 
 let routerParam: string | undefined
 let queryParams: Record<string, string | number | string[]> = {}

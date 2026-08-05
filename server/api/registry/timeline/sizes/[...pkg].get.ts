@@ -44,86 +44,71 @@ export interface TimelineSizeResponse {
  * - /api/registry/timeline/sizes/packageName?offset=0&limit=25
  * - /api/registry/timeline/sizes/@scope/packageName?offset=0&limit=25
  */
-const getTimelineSizes = defineCachedFunction(
-  async (
-    packageName: string,
-    offset: number,
-    limit: number,
-    stableOnly: boolean,
-  ): Promise<TimelineSizeResponse> => {
-    const { versions, time } = await getVersions(packageName)
-
-    const allVersions = versions
-      .filter(version => time[version])
-      .filter(version => !stableOnly || isStableVersion(version))
-      .sort((a, b) => Date.parse(time[b]!) - Date.parse(time[a]!))
-
-    const pageVersions = allVersions.slice(offset, offset + limit)
-
-    const results = await Promise.allSettled(
-      pageVersions.map(version => calculateInstallSize(packageName, version)),
-    )
-
-    const sizes: TimelineSizeEntry[] = []
-
-    for (const result of results) {
-      if (result.status === 'fulfilled' && result.value.totalSize > 0) {
-        sizes.push({
-          version: result.value.version,
-          totalSize: result.value.totalSize,
-          dependencyCount: result.value.dependencyCount,
-          selfSize: result.value.selfSize,
-          dependencies: result.value.dependencies
-            .slice(0, MAX_BREAKDOWN_DEPENDENCIES)
-            .map(dependency => ({
-              name: dependency.name,
-              size: dependency.size,
-            })),
-        })
-      }
+export default defineCachedEventHandler(
+  async event => {
+    const pkgParam = getRouterParam(event, 'pkg')
+    if (!pkgParam) {
+      throw createError({ statusCode: 404, message: 'Package name is required' })
     }
 
-    return { sizes }
+    let packageName: string
+    try {
+      packageName = decodeURIComponent(pkgParam)
+    } catch {
+      throw createError({ statusCode: 400, message: 'Invalid package name encoding' })
+    }
+
+    const query = getQuery(event)
+    const offset = Math.max(0, Number(query.offset) || 0)
+    const limit = Math.max(1, Math.min(100, Number(query.limit) || DEFAULT_LIMIT))
+    const stableOnly = String(query.stable) === 'true'
+
+    try {
+      const { versions, time } = await getVersions(packageName)
+
+      const allVersions = versions
+        .filter(v => time[v])
+        .filter(v => !stableOnly || isStableVersion(v))
+        .sort((a, b) => Date.parse(time[b]!) - Date.parse(time[a]!))
+
+      const pageVersions = allVersions.slice(offset, offset + limit)
+
+      const results = await Promise.allSettled(
+        pageVersions.map(v => calculateInstallSize(packageName, v)),
+      )
+
+      const sizes: TimelineSizeEntry[] = []
+      for (const result of results) {
+        if (result.status === 'fulfilled' && result.value.totalSize > 0) {
+          sizes.push({
+            version: result.value.version,
+            totalSize: result.value.totalSize,
+            dependencyCount: result.value.dependencyCount,
+            selfSize: result.value.selfSize,
+            dependencies: result.value.dependencies
+              .slice(0, MAX_BREAKDOWN_DEPENDENCIES)
+              .map(dep => ({ name: dep.name, size: dep.size })),
+          })
+        }
+      }
+
+      return { sizes } satisfies TimelineSizeResponse
+    } catch (error: unknown) {
+      handleApiError(error, {
+        statusCode: 502,
+        message: `Failed to fetch install sizes for ${packageName}`,
+      })
+    }
   },
   {
     maxAge: CACHE_MAX_AGE_FIVE_MINUTES,
     swr: true,
-    name: 'install-size-timeline',
-    getKey: (packageName: string, offset: number, limit: number, stableOnly: boolean) =>
-      `${packageName}:${offset}:${limit}:${stableOnly}`,
+    getKey: event => {
+      const query = getQuery(event)
+      const offset = Math.max(0, Number(query.offset) || 0)
+      const limit = Math.max(1, Math.min(100, Number(query.limit) || DEFAULT_LIMIT))
+      const stableOnly = String(query.stable) === 'true'
+      return `install-size-timeline:v3:${getRouterParam(event, 'pkg')}:${offset}:${limit}:${stableOnly}`
+    },
   },
 )
-
-export default defineEventHandler(async event => {
-  const pkgParam = getRouterParam(event, 'pkg')
-  if (!pkgParam) {
-    throw createError({
-      statusCode: 404,
-      message: 'Package name is required',
-    })
-  }
-
-  let packageName: string
-  try {
-    packageName = decodeURIComponent(pkgParam)
-  } catch {
-    throw createError({
-      statusCode: 400,
-      message: 'Invalid package name encoding',
-    })
-  }
-
-  const query = getQuery(event)
-  const offset = Math.max(0, Number(query.offset) || 0)
-  const limit = Math.max(1, Math.min(100, Number(query.limit) || DEFAULT_LIMIT))
-  const stableOnly = String(query.stable) === 'true'
-
-  try {
-    return await getTimelineSizes(packageName, offset, limit, stableOnly)
-  } catch (error: unknown) {
-    handleApiError(error, {
-      statusCode: 502,
-      message: `Failed to fetch install sizes for ${packageName}`,
-    })
-  }
-})

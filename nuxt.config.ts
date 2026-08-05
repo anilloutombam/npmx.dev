@@ -126,7 +126,7 @@ export default defineNuxtConfig({
       isr: {
         expiration: 300,
         passQuery: true,
-        allowQuery: ['offset', 'limit'],
+        allowQuery: ['offset', 'limit', 'stable'],
       },
     },
     '/api/registry/docs/**': { isr: true, cache: { maxAge: 365 * 24 * 60 * 60 } },
