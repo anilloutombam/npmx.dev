@@ -61,7 +61,7 @@ export default defineCachedEventHandler(
     const query = getQuery(event)
     const offset = Math.max(0, Number(query.offset) || 0)
     const limit = Math.max(1, Math.min(100, Number(query.limit) || DEFAULT_LIMIT))
-    const stableOnly = String(query.stable) === 'true'
+    const stableOnly = getRequestURL(event).searchParams.get('stable') === 'true'
 
     try {
       const { versions, time } = await getVersions(packageName)
@@ -107,7 +107,8 @@ export default defineCachedEventHandler(
       const query = getQuery(event)
       const offset = Math.max(0, Number(query.offset) || 0)
       const limit = Math.max(1, Math.min(100, Number(query.limit) || DEFAULT_LIMIT))
-      const stableOnly = String(query.stable) === 'true'
+      const stableOnly = getRequestURL(event).searchParams.get('stable') === 'true'
+
       return `install-size-timeline:v3:${getRouterParam(event, 'pkg')}:${offset}:${limit}:${stableOnly}`
     },
   },

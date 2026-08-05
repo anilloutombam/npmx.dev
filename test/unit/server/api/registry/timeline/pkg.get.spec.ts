@@ -21,6 +21,17 @@ vi.stubGlobal('getRouterParam', (_event: unknown, _name: string) => routerParam)
 vi.stubGlobal('getQuery', () => queryParams)
 vi.stubGlobal('createError', createError)
 
+vi.stubGlobal('getRequestURL', () => {
+  const url = new URL('http://localhost')
+  for (const [key, value] of Object.entries(queryParams)) {
+    const values = Array.isArray(value) ? value : [value]
+    for (const item of values) {
+      url.searchParams.append(key, String(item))
+    }
+  }
+  return url
+})
+
 const handler = (await import('#server/api/registry/timeline/[...pkg].get')).default
 
 function makePackument(opts: {
