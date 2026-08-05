@@ -80,29 +80,31 @@ const stableOnly = computed(() => settings.value.timelineChart.isOrdered)
 
 const hasMore = computed(() => timelineEntries.value.length < totalVersions.value)
 
-async function fetchTimeline(offset: number): Promise<TimelineResponse> {
-  return $fetch<TimelineResponse>(`/api/registry/timeline/${packageName.value}`, {
-    query: { offset, limit: PAGE_SIZE, stable: stableOnly.value },
+async function fetchTimeline(
+  offset: number,
+  requestedPackage = packageName.value,
+  requestedStableOnly = stableOnly.value,
+): Promise<TimelineResponse> {
+  return $fetch<TimelineResponse>(`/api/registry/timeline/${requestedPackage}`, {
+    query: {
+      offset,
+      limit: PAGE_SIZE,
+      stable: requestedStableOnly,
+    },
   })
 }
 
 // Initial load - useAsyncData serializes the full response across SSR to client
 const initialLoadError = ref(false)
 
-watch([packageName, stableOnly], () => {
-  timelineEntries.value = []
-  totalVersions.value = 0
-  initialLoadError.value = false
-  loadError.value = false
-})
+const initialPackage = packageName.value
+const initialStableOnly = stableOnly.value
+const initialTimelineDataKey = `timeline:${initialPackage}:${initialStableOnly ? 'stable' : 'all'}`
 
-const timelineDataKey = computed(
-  () => `timeline:${packageName.value}:${stableOnly.value ? 'stable' : 'all'}`,
+const { data: initialTimeline } = await useAsyncData(initialTimelineDataKey, () =>
+  fetchTimeline(0, initialPackage, initialStableOnly),
 )
 
-const { data: initialTimeline } = await useAsyncData(timelineDataKey, () => fetchTimeline(0), {
-  watch: [packageName, stableOnly],
-})
 watch(
   initialTimeline,
   data => {
@@ -116,6 +118,31 @@ watch(
   },
   { immediate: true },
 )
+
+if (import.meta.client) {
+  watch([packageName, stableOnly], async ([requestedPackage, requestedStableOnly]) => {
+    timelineEntries.value = []
+    totalVersions.value = 0
+    initialLoadError.value = false
+    loadError.value = false
+
+    try {
+      const data = await fetchTimeline(0, requestedPackage, requestedStableOnly)
+
+      if (requestedPackage !== packageName.value || requestedStableOnly !== stableOnly.value) {
+        return
+      }
+
+      timelineEntries.value = data.versions
+      totalVersions.value = data.total
+      fetchSizes(0, requestedPackage, requestedStableOnly)
+    } catch {
+      if (requestedPackage === packageName.value && requestedStableOnly === stableOnly.value) {
+        initialLoadError.value = true
+      }
+    }
+  })
+}
 
 async function loadMore() {
   if (loadingMore.value) return
@@ -155,15 +182,28 @@ function sizeKey(ver: string) {
   return `${packageName.value}@${ver}`
 }
 
-async function fetchSizes(offset: number) {
-  const requestedPackage = packageName.value
+async function fetchSizes(
+  offset: number,
+  requestedPackage = packageName.value,
+  requestedStableOnly = stableOnly.value,
+) {
   sizeFetchesInFlight.value++
+
   try {
     const data = await $fetch<TimelineSizeResponse>(
       `/api/registry/timeline/sizes/${requestedPackage}`,
-      { query: { offset, limit: PAGE_SIZE, stable: stableOnly.value } },
+      {
+        query: {
+          offset,
+          limit: PAGE_SIZE,
+          stable: requestedStableOnly,
+        },
+      },
     )
-    if (requestedPackage !== packageName.value) return
+
+    if (requestedPackage !== packageName.value || requestedStableOnly !== stableOnly.value) {
+      return
+    }
 
     for (const entry of data.sizes) {
       sizeCache.set(`${requestedPackage}@${entry.version}`, {
