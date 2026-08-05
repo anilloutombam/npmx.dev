@@ -92,6 +92,7 @@ const initialLoadError = ref(false)
 watch([packageName, stableOnly], () => {
   timelineEntries.value = []
   totalVersions.value = 0
+  initialLoadError.value = false
   loadError.value = false
 })
 

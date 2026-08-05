@@ -15,7 +15,7 @@ const handleApiErrorMock = vi.fn(
 vi.stubGlobal('handleApiError', handleApiErrorMock)
 
 let routerParam: string | undefined
-let queryParams: Record<string, string | number> = {}
+let queryParams: Record<string, string | number | string[]> = {}
 
 vi.stubGlobal('getRouterParam', (_event: unknown, _name: string) => routerParam)
 vi.stubGlobal('getQuery', () => queryParams)
@@ -121,7 +121,7 @@ describe('timeline API', () => {
 
   it('paginates stable versions independently from prereleases', async () => {
     routerParam = 'my-pkg'
-    queryParams = { offset: 1, limit: 2, stable: 'true' }
+    queryParams = { offset: 1, limit: 2, stable: ['true'] }
 
     fetchNpmPackageMock.mockResolvedValue(
       makePackument({

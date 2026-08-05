@@ -59,7 +59,7 @@ export default defineCachedEventHandler(
     const query = getQuery(event)
     const offset = Math.max(0, Number(query.offset) || 0)
     const limit = Math.max(1, Math.min(100, Number(query.limit) || DEFAULT_LIMIT))
-    const stableOnly = query.stable === 'true'
+    const stableOnly = String(query.stable) === 'true'
 
     try {
       const packument = await fetchNpmPackage(packageName)
@@ -110,7 +110,7 @@ export default defineCachedEventHandler(
       const query = getQuery(event)
       const offset = Math.max(0, Number(query.offset) || 0)
       const limit = Math.max(1, Math.min(100, Number(query.limit) || DEFAULT_LIMIT))
-      const stableOnly = query.stable === 'true'
+      const stableOnly = String(query.stable) === 'true'
       return `timeline:v2:${getRouterParam(event, 'pkg')}:${offset}:${limit}:${stableOnly}`
     },
   },

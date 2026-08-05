@@ -20,7 +20,7 @@ vi.stubGlobal('defineCachedEventHandler', (fn: Function) => fn)
 vi.stubGlobal('CACHE_MAX_AGE_FIVE_MINUTES', 300)
 
 let routerParam: string | undefined
-let queryParams: Record<string, string | number> = {}
+let queryParams: Record<string, string | number | string[]> = {}
 
 vi.stubGlobal('getRouterParam', () => routerParam)
 vi.stubGlobal('getQuery', () => queryParams)
@@ -41,7 +41,7 @@ describe('timeline sizes API', () => {
   })
 
   it('filters stable versions before applying pagination', async () => {
-    queryParams = { offset: 1, limit: 2, stable: 'true' }
+    queryParams = { offset: 1, limit: 2, stable: ['true'] }
     getVersionsMock.mockResolvedValue({
       versions: [
         '1.0.0',
