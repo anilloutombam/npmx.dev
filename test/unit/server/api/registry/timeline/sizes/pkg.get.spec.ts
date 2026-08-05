@@ -18,6 +18,8 @@ const calculateInstallSizeMock = vi.fn(async (_packageName: string, version: str
 vi.stubGlobal('calculateInstallSize', calculateInstallSizeMock)
 vi.stubGlobal('defineCachedEventHandler', (fn: Function) => fn)
 vi.stubGlobal('CACHE_MAX_AGE_FIVE_MINUTES', 300)
+vi.stubGlobal('defineEventHandler', (fn: Function) => fn)
+vi.stubGlobal('defineCachedFunction', (fn: Function) => fn)
 
 let routerParam: string | undefined
 let queryParams: Record<string, string | number | string[]> = {}
@@ -25,17 +27,6 @@ let queryParams: Record<string, string | number | string[]> = {}
 vi.stubGlobal('getRouterParam', () => routerParam)
 vi.stubGlobal('getQuery', () => queryParams)
 vi.stubGlobal('createError', createError)
-
-vi.stubGlobal('getRequestURL', () => {
-  const url = new URL('http://localhost')
-  for (const [key, value] of Object.entries(queryParams)) {
-    const values = Array.isArray(value) ? value : [value]
-    for (const item of values) {
-      url.searchParams.append(key, String(item))
-    }
-  }
-  return url
-})
 
 const handler = (await import('#server/api/registry/timeline/sizes/[...pkg].get')).default
 const fakeEvent = {} as H3Event
